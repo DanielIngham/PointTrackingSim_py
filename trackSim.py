@@ -41,7 +41,10 @@ class Simulator():
     """
     Generates tracks for point objects that can be used for single or multi object tracking algorithms. The measurements are in the form of range and bearing.
 
+    Parameters:
+        total_objects (int): total number point objects being simulated.
     Attributes:
+        total_objects (int): total number point objects being simulated.
         datapoints (int): maximum number of object orginated data points.
         average_clutter (float): total number of clutter detections present for a given scan.
         sample_rate (float): period between samples.
@@ -59,6 +62,11 @@ class Simulator():
         """
         Inititate new simulation instance. 
         """
+        if (total_objects <= 0):
+            raise ValueError("The total number of objects simulated must be \
+                greater than zero.")
+
+        self.total_objects : int = total_objects
         self.datapoints : int = 100
         self.average_clutter : float = 5.
         self.detection_prob : float = .9
@@ -185,7 +193,7 @@ class Simulator():
         Parameters:
             ax (Axis): matplotlib axis.
         """
-        for key, data_array in sim.objects.items():
+        for key, data_array in self.objects.items():
 
             x_coords = data_array[SE2.X.value]
             y_coords = data_array[SE2.Y.value]
@@ -223,7 +231,7 @@ class Simulator():
             ax (Axis): matplotlib axis.
         """
         flat_data = []
-        for set_of_measurements in sim.object_detections:
+        for set_of_measurements in self.object_detections:
             for measurement in set_of_measurements:
                 flat_data.append(measurement)
 
@@ -255,7 +263,7 @@ class Simulator():
             ax (Axis): matplotlib axis.
         """
         flat_data = []
-        for set_of_measurements in sim.measurements:
+        for set_of_measurements in self.measurements:
             for measurement in set_of_measurements:
                 flat_data.append(measurement)
 
@@ -283,23 +291,20 @@ class Simulator():
 
 if  __name__ == "__main__":
     sim = Simulator(1)
-    # Create the figure and axes
+
     fig, ax = plt.subplots(figsize=(10, 6))
 
-    # Iterate through the dictionary to plot each object
     sim.plot_trajectories(ax)
 
     sim.plot_detections(ax)
     # sim.plot_clutter(ax)
 
-    # Add labels, title, and legend
     ax.set_xlim(left=sim.fov[0][0], right=sim.fov[0][1])
     ax.set_ylim(bottom=sim.fov[1][0], top=sim.fov[1][1])
     ax.set_xlabel('X Coordinate')
     ax.set_ylabel('Y Coordinate')
     ax.set_title('Plot of Objects from Dictionary')
-    ax.legend(title='Object ID') # Display the legend with the custom labels
+    ax.legend(title='Object ID')
     ax.grid(True)
 
-    # To display or save the plot
     plt.show()

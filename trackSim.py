@@ -49,6 +49,7 @@ class Simulator():
         average_clutter (float): total number of clutter detections present for a given scan.
         sample_rate (float): period between samples.
         fov: (list): Field of view of the sensor (metres).
+        fov_vol (float): volume (area in 2D) of the field of view. 
         speed (tuple): Minimum and maximum speed range of objects.
         measurements (list): Measurements potentially containing object detections 
         and clutter.
@@ -69,15 +70,20 @@ class Simulator():
         self.total_objects : int = total_objects
         self.datapoints : int = 100
         self.average_clutter : float = 5.
-        self.detection_prob : float = .9
+        self.detection_prob : float = 0.9
         self.sample_rate : float = .01
         self.fov : list = [(0, 10),(-10, 10)]
+        self.fov_vol : float = (self.fov[SE2.X.value][Indicies.MAX.value] -
+            self.fov[SE2.X.value][Indicies.MIN.value]) *\
+            (self.fov[SE2.Y.value][Indicies.MAX.value] - 
+            self.fov[SE2.Y.value][Indicies.MIN.value])
+
         self.speed : tuple = (20, 30)
         self.noise : tuple = (.2, 0.01)
 
-        self.measurements = [set() for _ in range(self.datapoints)]
-        self.clutter = [set() for _ in range(self.datapoints)]
-        self.object_detections = [set() for _ in range(self.datapoints)]
+        self.measurements = [[]]
+        self.clutter = [[]]
+        self.object_detections = [[]]
 
         self.objects = { 
             i: [[0] for _ in range(6)]
@@ -137,7 +143,10 @@ class Simulator():
         """
         Generates clutter measurements uniformly within the sensors field of view.
         """
-        for k in range(self.datapoints):
+        max_len = max(len(array[0]) for array in self.objects.values())
+        self.clutter = [[] for _ in range(max_len)]
+
+        for k in range(max_len):
             total_clutter = np.random.poisson(self.average_clutter)
             for _ in range(total_clutter):
                 clutter = np.random.uniform(low=[self.fov[0][0], self.fov[1][0]],
@@ -149,27 +158,32 @@ class Simulator():
                 bearing_meas = np.atan2(clutter[SE2.Y.value], 
                                         clutter[SE2.X.value])
 
-                self.clutter[k].add((range_meas, bearing_meas))
+                self.clutter[k].append((range_meas, bearing_meas))
 
     def generate_object_detections(self):
         """
         Uses the objects trajectory to generate range and bearing measurements. 
         Gaussian noise is then added subsequently.
         """
+
+        max_len = max(len(array[0]) for array in self.objects.values())
+        self.object_detections = [[] for _ in range(max_len)]
+
         for array in self.objects.values():
 
-            for k in range(len(array[SE2.Y.value])):
+            for k in range(max_len):
 
                 range_meas = np.sqrt(np.pow(array[SE2.X.value][k],2) +\
-                    np.pow(array[SE2.Y.value][k],2)) +\
-                    np.random.normal(0, self.noise[Indicies.RANGE.value])
+                    np.pow(array[SE2.Y.value][k],2)) \
+                    + np.random.normal(0, self.noise[Indicies.RANGE.value])
 
-                bearing_meas = np.atan2(array[SE2.Y.value][k], 
-                                        array[SE2.X.value][k]) +\
-                    np.random.normal(0, self.noise[Indicies.BEARING.value])
+                bearing_meas = np.atan2(array[SE2.Y.value][k],
+                                        array[SE2.X.value][k]) \
+                + np.random.normal(0, self.noise[Indicies.BEARING.value])
 
 
-                self.object_detections[k].add((range_meas, bearing_meas))
+                self.object_detections[k].append((range_meas, bearing_meas))
+
 
     def populate_measurements(self):
         """
@@ -178,14 +192,14 @@ class Simulator():
         """
         self.generate_object_detections()
         self.generate_clutter()
-
-        for k in range(len(self.measurements)):
-            self.measurements[k] |= self.clutter[k]
+        self.measurements = [[] for _ in range(len(self.object_detections))]
+        for k in range(len(self.object_detections)):
+            self.measurements[k] += (self.clutter[k])
 
             # Add missed detections
             rand = np.random.uniform(0,1,1)
             if ((rand < self.detection_prob) or (k == 0)):
-                self.measurements[k] |= self.object_detections[k]
+                self.measurements[k] += self.object_detections[k]
 
     def plot_trajectories(self, ax):
         """
@@ -208,7 +222,7 @@ class Simulator():
             ax (Axis): matplotlib axis.
         """
         flat_data = []
-        for set_of_measurements in sim.clutter:
+        for set_of_measurements in self.clutter:
             for measurement in set_of_measurements:
                 flat_data.append(measurement)
 
@@ -221,7 +235,7 @@ class Simulator():
         x_components = ranges * np.cos(bearings_rad)
         y_components = ranges * np.sin(bearings_rad)
 
-        ax.scatter(x_components, y_components)
+        ax.scatter(x_components, y_components, color="orange", alpha=0.6)
 
 
     def plot_detections(self, ax):

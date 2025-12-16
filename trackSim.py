@@ -59,7 +59,13 @@ class Simulator():
         objects (dict): Objects trajectories.
     """
 
-    def __init__(self, total_objects: int):
+    def __init__(self, total_objects: int, seed=None):
+
+        if seed is None:
+            self.rng = np.random.seed()
+        else:
+            self.rng = np.random.seed(seed)
+
         """
         Inititate new simulation instance. 
         """
@@ -69,7 +75,7 @@ class Simulator():
 
         self.total_objects : int = total_objects
         self.datapoints : int = 100
-        self.average_clutter : float = 5.
+        self.average_clutter : float = 200.
         self.detection_prob : float = 0.9
         self.sample_rate : float = .01
         self.fov : list = [(0, 10),(-10, 10)]
@@ -104,6 +110,7 @@ class Simulator():
             array: the list of the objects state vectors corresponding to 
             its trajectory.
         """
+        array[SE2.X.value][0] = 0.
         array[SE2.Y.value][0] = np.random.uniform(
             low = self.fov[SE2.X.value][Indicies.MIN.value], 
             high= self.fov[SE2.X.value][Indicies.MAX.value])
@@ -116,9 +123,17 @@ class Simulator():
             low = self.speed[Indicies.MIN.value], 
             high = self.speed[Indicies.MAX.value])
 
+        array[SE2.A.value][0] = 0.
+        array[SE2.W.value][0] = 0.
 
         for _ in range(1, self.datapoints):
-            # Constant velocity
+            array[SE2.W.value].append(0.)
+            # array[SE2.A.value].append(np.random.uniform(0,5))
+            array[SE2.A.value].append(0)
+
+            array[SE2.V.value].append(array[SE2.V.value][-1] \
+                + self.sample_rate * array[SE2.A.value][-1])
+
             array[SE2.X.value].append(array[SE2.X.value][-1] + \
                 self.sample_rate * array[SE2.V.value][-1] * \
                 np.cos(array[SE2.O.value][-1]))
@@ -127,7 +142,6 @@ class Simulator():
                 self.sample_rate * array[SE2.V.value][-1] * \
                 np.sin(array[SE2.O.value][-1]))
 
-            array[SE2.V.value].append(array[SE2.V.value][-1])
 
             # Check if the object is outside the field of view
             if (array[SE2.X.value][-1] < self.fov[SE2.X.value][Indicies.MIN.value] or 

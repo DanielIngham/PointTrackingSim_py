@@ -87,13 +87,13 @@ class Simulator():
         self.speed : tuple = (20, 30)
         self.noise : tuple = (.2, 0.01)
 
-        self.measurements = [[]]
-        self.clutter = [[]]
-        self.object_detections = [[]]
+        self.measurements : list[list[tuple[float, float]]] 
+        self.clutter : list[list[tuple[float, float]]]
+        self.object_detections : list[list[tuple[float, float]]]
 
         self.objects = { 
             i: [[0] for _ in range(6)]
-            for i in range(total_objects)}
+            for i in range(self.total_objects)}
 
         for array in self.objects.values():
             self.genTrajectory(array)
@@ -208,7 +208,7 @@ class Simulator():
         self.generate_clutter()
         self.measurements = [[] for _ in range(len(self.object_detections))]
         for k in range(len(self.object_detections)):
-            self.measurements[k] += (self.clutter[k])
+            self.measurements[k] += self.clutter[k]
 
             # Add missed detections
             rand = np.random.uniform(0,1,1)
@@ -318,14 +318,13 @@ class Simulator():
 
 
 if  __name__ == "__main__":
-    sim = Simulator(1)
+    sim = Simulator(total_objects=1)
 
     fig, ax = plt.subplots(figsize=(10, 6))
 
     sim.plot_trajectories(ax)
 
     sim.plot_detections(ax)
-    # sim.plot_clutter(ax)
 
     ax.set_xlim(left=sim.fov[0][0], right=sim.fov[0][1])
     ax.set_ylim(bottom=sim.fov[1][0], top=sim.fov[1][1])
